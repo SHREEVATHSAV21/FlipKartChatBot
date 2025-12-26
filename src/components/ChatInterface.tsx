@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Send } from "lucide-react";
-import LanguageSelector from "./LanguageSelector"; // Import the new LanguageSelector
+import LanguageSelector from "./LanguageSelector";
 
 interface Message {
   id: string;
@@ -15,10 +15,35 @@ interface Message {
   sender: "user" | "bot";
 }
 
+const placeholderTexts: Record<string, string> = {
+  en: "Type your message...",
+  hi: "अपना संदेश लिखें...",
+  te: "మీ సందేశాన్ని టైప్ చేయండి...",
+  es: "Escribe tu mensaje...",
+  fr: "Tapez votre message...",
+};
+
+const getBotResponseText = (userMessage: string, lang: string) => {
+  const baseMessage = "I'm a simple bot. For advanced features like language handling, emotion understanding, problem-solving, and memory, I'd need a backend AI service.";
+  switch (lang) {
+    case "hi":
+      return `नमस्ते! आपने कहा: "${userMessage}" हिंदी में। मैं एक साधारण बॉट हूँ। भाषा प्रबंधन, भावना को समझना, समस्या-समाधान और स्मृति जैसी उन्नत सुविधाओं के लिए, मुझे एक बैकएंड एआई सेवा की आवश्यकता होगी।`;
+    case "te":
+      return `నమస్కారం! మీరు తెలుగులో ఇలా అన్నారు: "${userMessage}". నేను ఒక సాధారణ బాట్ని. భాషా నిర్వహణ, భావోద్వేగాలను అర్థం చేసుకోవడం, సమస్య పరిష్కారం మరియు జ్ఞాపకశక్తి వంటి అధునాతన లక్షణాల కోసం, నాకు బ్యాకెండ్ AI సేవ అవసరం.`;
+    case "es":
+      return `¡Hola! Dijiste: "${userMessage}" en español. Soy un bot simple. Para funciones avanzadas como el manejo de idiomas, la comprensión de emociones, la resolución de problemas y la memoria, necesitaría un servicio de IA de backend.`;
+    case "fr":
+      return `Bonjour! Vous avez dit : "${userMessage}" en français. Je suis un simple bot. Pour des fonctionnalités avancées comme la gestion des langues, la compréhension des émotions, la résolution de problèmes et la mémoire, j'aurais besoin d'un service d'IA backend.`;
+    case "en":
+    default:
+      return `Hello! You said: "${userMessage}" in ${lang}. ${baseMessage}`;
+  }
+};
+
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState("en"); // State for selected language
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleSendMessage = () => {
@@ -27,11 +52,10 @@ const ChatInterface = () => {
       setMessages((prevMessages) => [...prevMessages, newUserMessage]);
       setInput("");
 
-      // Simulate a bot response (this would be replaced by actual AI integration)
       setTimeout(() => {
         const botResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: `Hello! You said: "${input}" in ${selectedLanguage}. I'm a simple bot. For advanced features like language handling, emotion understanding, problem-solving, and memory, I'd need a backend AI service.`,
+          text: getBotResponseText(newUserMessage.text, selectedLanguage),
           sender: "bot",
         };
         setMessages((prevMessages) => [...prevMessages, botResponse]);
@@ -41,8 +65,7 @@ const ChatInterface = () => {
 
   const handleLanguageChange = (language: string) => {
     setSelectedLanguage(language);
-    console.log("Selected language:", language); // Log the selected language
-    // In a real application, you would pass this language preference to your AI backend
+    console.log("Selected language:", language);
   };
 
   useEffect(() => {
@@ -103,7 +126,7 @@ const ChatInterface = () => {
       <CardFooter className="border-t p-4">
         <div className="flex w-full space-x-2">
           <Input
-            placeholder="Type your message..."
+            placeholder={placeholderTexts[selectedLanguage]}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => {

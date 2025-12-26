@@ -17,7 +17,7 @@ interface LanguageSelectorProps {
 const languages = [
   { value: "en", label: "English" },
   { value: "hi", label: "Hindi" },
-  { value: "te", label: "Telugu" },
+  { value: "te", label: "తెలుగు" }, // Updated label to native script
   { value: "es", label: "Spanish" },
   { value: "fr", label: "French" },
 ];
