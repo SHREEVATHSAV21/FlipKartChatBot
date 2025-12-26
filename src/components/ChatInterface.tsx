@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import LanguageSelector from "./LanguageSelector";
+import { supabase } from "@/integrations/supabase/client";
+import { showError } from "@/utils/toast";
 
 interface Message {
   id: string;
@@ -23,43 +25,60 @@ const placeholderTexts: Record<string, string> = {
   fr: "Tapez votre message...",
 };
 
-const getBotResponseText = (userMessage: string, lang: string) => {
-  const baseMessage = "I'm a simple bot. For advanced features like language handling, emotion understanding, problem-solving, and memory, I'd need a backend AI service.";
-  switch (lang) {
-    case "hi":
-      return `नमस्ते! आपने कहा: "${userMessage}" हिंदी में। मैं एक साधारण बॉट हूँ। भाषा प्रबंधन, भावना को समझना, समस्या-समाधान और स्मृति जैसी उन्नत सुविधाओं के लिए, मुझे एक बैकएंड एआई सेवा की आवश्यकता होगी।`;
-    case "te":
-      return `నమస్కారం! మీరు తెలుగులో ఇలా అన్నారు: "${userMessage}". నేను ఒక సాధారణ బాట్ని. భాషా నిర్వహణ, భావోద్వేగాలను అర్థం చేసుకోవడం, సమస్య పరిష్కారం మరియు జ్ఞాపకశక్తి వంటి అధునాతన లక్షణాల కోసం, నాకు బ్యాకెండ్ AI సేవ అవసరం.`;
-    case "es":
-      return `¡Hola! Dijiste: "${userMessage}" en español. Soy un bot simple. Para funciones avanzadas como el manejo de idiomas, la comprensión de emociones, la resolución de problemas y la memoria, necesitaría un servicio de IA de backend.`;
-    case "fr":
-      return `Bonjour! Vous avez dit : "${userMessage}" en français. Je suis un simple bot. Pour des fonctionnalités avancées comme la gestion des langues, la compréhension des émotions, la résolution de problèmes et la mémoire, j'aurais besoin d'un service d'IA backend.`;
-    case "en":
-    default:
-      return `Hello! You said: "${userMessage}" in ${lang}. ${baseMessage}`;
-  }
-};
+// Hardcoded URL for the deployed Edge Function
+const GEMINI_CHAT_FUNCTION_URL = "https://ofhwpywyuwykvfxhwpoa.supabase.co/functions/v1/gemini-chat";
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = () => {
-    if (input.trim()) {
+  const callGeminiFunction = async (userMessage: string, language: string) => {
+    setIsLoading(true);
+    try {
+      // We use standard fetch here because we are calling a hardcoded URL, 
+      // not using the supabase.functions.invoke() method which requires authentication setup.
+      const response = await fetch(GEMINI_CHAT_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userMessage, language }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error("Error calling Gemini function:", error);
+      showError("Failed to get response from AI. Check console for details.");
+      return "Sorry, I encountered an error while trying to respond.";
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (input.trim() && !isLoading) {
       const newUserMessage: Message = { id: Date.now().toString(), text: input, sender: "user" };
       setMessages((prevMessages) => [...prevMessages, newUserMessage]);
+      const currentInput = input;
       setInput("");
 
-      setTimeout(() => {
-        const botResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: getBotResponseText(newUserMessage.text, selectedLanguage),
-          sender: "bot",
-        };
-        setMessages((prevMessages) => [...prevMessages, botResponse]);
-      }, 1000);
+      const botResponseText = await callGeminiFunction(currentInput, selectedLanguage);
+
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: botResponseText,
+        sender: "bot",
+      };
+      setMessages((prevMessages) => [...prevMessages, botResponse]);
     }
   };
 
@@ -77,7 +96,7 @@ const ChatInterface = () => {
   return (
     <Card className="w-full max-w-md mx-auto flex flex-col h-[600px]">
       <CardHeader className="border-b flex flex-row items-center justify-between p-4">
-        <CardTitle className="text-lg">Flipkart Query Bot</CardTitle>
+        <CardTitle className="text-lg">Flipkart Query Bot (Gemini 2.5 Flash)</CardTitle>
         <LanguageSelector
           selectedLanguage={selectedLanguage}
           onLanguageChange={handleLanguageChange}
@@ -86,8 +105,11 @@ const ChatInterface = () => {
       <CardContent className="flex-1 p-4 overflow-hidden">
         <ScrollArea className="h-full pr-4" ref={scrollAreaRef}>
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Start chatting with the bot!
+            <div className="flex items-center justify-center h-full text-muted-foreground text-center">
+              Start chatting with the AI bot!
+              <p className="mt-2 text-xs">
+                (Remember to set the GEMINI_API_KEY secret in Supabase for this to work.)
+              </p>
             </div>
           ) : (
             messages.map((message) => (
@@ -121,6 +143,16 @@ const ChatInterface = () => {
               </div>
             ))
           )}
+          {isLoading && (
+            <div className="flex justify-start items-center mb-4">
+              <Avatar className="h-8 w-8 mr-2">
+                <AvatarFallback>Bot</AvatarFallback>
+              </Avatar>
+              <div className="bg-muted p-3 rounded-lg rounded-bl-none">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            </div>
+          )}
         </ScrollArea>
       </CardContent>
       <CardFooter className="border-t p-4">
@@ -135,9 +167,14 @@ const ChatInterface = () => {
               }
             }}
             className="flex-1"
+            disabled={isLoading}
           />
-          <Button onClick={handleSendMessage} disabled={!input.trim()}>
-            <Send className="h-4 w-4" />
+          <Button onClick={handleSendMessage} disabled={!input.trim() || isLoading}>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
             <span className="sr-only">Send</span>
           </Button>
         </div>
