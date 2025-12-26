@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Send } from "lucide-react";
+import LanguageSelector from "./LanguageSelector"; // Import the new LanguageSelector
 
 interface Message {
   id: string;
@@ -17,6 +18,7 @@ interface Message {
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("en"); // State for selected language
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleSendMessage = () => {
@@ -29,12 +31,18 @@ const ChatInterface = () => {
       setTimeout(() => {
         const botResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: `Hello! You said: "${input}". I'm a simple bot. For advanced features like language handling, emotion understanding, problem-solving, and memory, I'd need a backend AI service.`,
+          text: `Hello! You said: "${input}" in ${selectedLanguage}. I'm a simple bot. For advanced features like language handling, emotion understanding, problem-solving, and memory, I'd need a backend AI service.`,
           sender: "bot",
         };
         setMessages((prevMessages) => [...prevMessages, botResponse]);
       }, 1000);
     }
+  };
+
+  const handleLanguageChange = (language: string) => {
+    setSelectedLanguage(language);
+    console.log("Selected language:", language); // Log the selected language
+    // In a real application, you would pass this language preference to your AI backend
   };
 
   useEffect(() => {
@@ -45,8 +53,12 @@ const ChatInterface = () => {
 
   return (
     <Card className="w-full max-w-md mx-auto flex flex-col h-[600px]">
-      <CardHeader className="border-b">
-        <CardTitle className="text-center">Flipkart Query Bot (Frontend Demo)</CardTitle>
+      <CardHeader className="border-b flex flex-row items-center justify-between p-4">
+        <CardTitle className="text-lg">Flipkart Query Bot</CardTitle>
+        <LanguageSelector
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={handleLanguageChange}
+        />
       </CardHeader>
       <CardContent className="flex-1 p-4 overflow-hidden">
         <ScrollArea className="h-full pr-4" ref={scrollAreaRef}>
